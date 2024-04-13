@@ -12,7 +12,7 @@ import numpy as np
 import cv2
 from torch.cuda import amp
 
-from utils.constants import DEFAULT_DEVICE
+from cartoon_segmentation.utils.constants import DEFAULT_DEVICE
 # from data_loader import create_training_datasets
 
 
@@ -165,7 +165,7 @@ def load_refinenet(refine_method = 'animeseg', device: str = None) -> AnimeSegme
     else:
         raise NotImplementedError
     return model.eval().to(device)
-    
+
 def get_mask(model, input_img, use_amp=True, s=640):
     h0, w0 = h, w = input_img.shape[0], input_img.shape[1]
     if h > w:

@@ -22,10 +22,10 @@ from pycocotools.coco import COCO
 from mmcv.transforms import Compose
 from mmdet.models.detectors.single_stage import SingleStageDetector
 
-from utils.logger import LOGGER
-from utils.io_utils import square_pad_resize, find_all_imgs, imglist2grid, mask2rle, dict2json, scaledown_maxsize, resize_pad
-from utils.constants import DEFAULT_DEVICE, CATEGORIES
-from utils.booru_tagger import Tagger
+from cartoon_segmentation.utils.logger import LOGGER
+from cartoon_segmentation.utils.io_utils import square_pad_resize, find_all_imgs, imglist2grid, mask2rle, dict2json, scaledown_maxsize, resize_pad
+from cartoon_segmentation.utils.constants import DEFAULT_DEVICE, CATEGORIES
+from cartoon_segmentation.utils.booru_tagger import Tagger
 
 from .models.animeseg_refine import AnimeSegmentation, load_refinenet, get_mask
 from .models.rtmdet_inshead_custom import RTMDetInsSepBNHeadCustom
@@ -42,7 +42,7 @@ def prepare_refine_batch(segmentations: np.ndarray, img: np.ndarray, max_batch_s
 
     batch = []
     num_seg = len(segmentations)
-    
+
     for ii, seg in enumerate(segmentations):
         seg, _ = resize_pad(seg, input_size, 0)
         seg = seg[None, ...]
@@ -76,18 +76,18 @@ def single_image_preprocess(img: Union[str, np.ndarray], pipeline: Compose):
     return data_, img
 
 def animeseg_refine(det_pred: DetDataSample, img: np.ndarray, net: AnimeSegmentation, to_rgb=True, input_size: int = 1024):
-    
+
     num_pred = len(det_pred.pred_instances)
     if num_pred < 1:
         return
-    
+
     with torch.no_grad():
         if to_rgb:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         seg_thr = 0.5
         mask = get_mask(net, img, s=input_size)[..., 0]
         mask = (mask > seg_thr)
-        
+
         ins_masks = det_pred.pred_instances.masks
 
         if isinstance(ins_masks, torch.Tensor):
@@ -117,11 +117,11 @@ def animeseg_refine(det_pred: DetDataSample, img: np.ndarray, net: AnimeSegmenta
 
 
 # def refinenet_forward(det_pred: DetDataSample, img: np.ndarray, net: AnimeSegmentation, to_rgb=True, input_size: int = 1024):
-    
+
 #     num_pred = len(det_pred.pred_instances)
 #     if num_pred < 1:
 #         return
-    
+
 #     with torch.no_grad():
 #         if to_rgb:
 #             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -149,7 +149,7 @@ def animeseg_refine(det_pred: DetDataSample, img: np.ndarray, net: AnimeSegmenta
 #             return pred
 
 #         mask = (mask > seg_thr)
-        
+
 #         ins_masks = det_pred.pred_instances.masks
 
 #         if isinstance(ins_masks, torch.Tensor):
@@ -178,13 +178,13 @@ def animeseg_refine(det_pred: DetDataSample, img: np.ndarray, net: AnimeSegmenta
 
 def read_imglst_from_txt(filep) -> List[str]:
     with open(filep, 'r', encoding='utf8') as f:
-        lines = f.read().splitlines() 
+        lines = f.read().splitlines()
     return lines
 
 
 class AnimeInsSeg:
 
-    def __init__(self, ckpt: str, default_det_size: int = 640, device: str = None, 
+    def __init__(self, ckpt: str, default_det_size: int = 640, device: str = None,
                  refine_kwargs: dict = {'refine_method': 'refinenet_isnet'},
                  tagger_path: str = 'models/wd-v1-4-swinv2-tagger-v2/model.onnx', mask_thr=0.3) -> None:
         self.ckpt = ckpt
@@ -198,7 +198,7 @@ class AnimeInsSeg:
         cfg.visualizer = []
         cfg.vis_backends = {}
         cfg.default_hooks.pop('visualization')
-        
+
 
         # self.model: SingleStageDetector = init_detector(cfg, checkpoint=None, device='cpu')
         model = MODELS.build(cfg.model)
@@ -245,7 +245,7 @@ class AnimeInsSeg:
                 bbox = bbox.cpu().numpy()
                 mask = mask.cpu().numpy()
             bbox = bbox.astype(np.int32)
-            
+
             crop = img[bbox[1]: bbox[3] + bbox[1], bbox[0]: bbox[2] + bbox[0]].copy()
             mask = mask[bbox[1]: bbox[3] + bbox[1], bbox[0]: bbox[2] + bbox[0]]
             crop[mask == 0] = 255
@@ -304,7 +304,7 @@ class AnimeInsSeg:
             RTMDetInsSepBNHeadCustom._bbox_mask_post_process = hijack_bbox_mask_post_process
             # results_list = bbox_head.predict(
             #     x, batch_data_samples, rescale=rescale)
-            
+
             batch_img_metas = [
                 data_samples.metainfo for data_samples in batch_data_samples
             ]
@@ -316,7 +316,7 @@ class AnimeInsSeg:
 
             # batch_data_samples = self.add_pred_to_datasample(
             #     batch_data_samples, results_list)
-            
+
             RTMDetInsSepBNHeadCustom._bbox_mask_post_process = old_postprocess
             return results_list
 
@@ -370,7 +370,7 @@ class AnimeInsSeg:
             mask = mask > 0.5
             mask = mask.cpu().numpy()
             ins_segs.append(mask)
-            
+
             matched_iou_score = ioulst[matched_idx]
             matched_score = instance_data.scores[matched_idx]
             scores.append(matched_score.cpu().item())
@@ -384,12 +384,12 @@ class AnimeInsSeg:
             ins_bboxes[:, 2:] -= ins_bboxes[:, :2]
             ins_segs = np.array(ins_segs)
         instances = AnimeInstances(ins_segs, ins_bboxes, scores)
-        
+
         self._postprocess_refine(instances, img)
         drawed = instances.draw_instances(img)
         # cv2.imshow('drawed', drawed)
         # cv2.waitKey(0)
-        
+
         return instances
 
     def set_detect_size(self, det_size: Union[int, Tuple]):
@@ -397,18 +397,18 @@ class AnimeInsSeg:
             det_size = (det_size, det_size)
         self.default_data_pipeline.transforms[1].scale = det_size
         self.default_data_pipeline.transforms[2].size = det_size
-        
+
     @torch.no_grad()
-    def infer(self, imgs: Union[List, str, np.ndarray], 
+    def infer(self, imgs: Union[List, str, np.ndarray],
               pred_score_thr: float = 0.3,
               refine_kwargs: dict = None,
-              output_type: str="tensor", 
-              det_size: int = None, 
+              output_type: str="tensor",
+              det_size: int = None,
               save_dir: str = '',
               save_visualization: bool = False,
               save_annotation: str = '',
               infer_tags: bool = False,
-              obj_id_start: int = -1, 
+              obj_id_start: int = -1,
               img_id_start: int = -1,
               verbose: bool = False,
               infer_grey: bool = False,
@@ -416,7 +416,7 @@ class AnimeInsSeg:
               val_dir=None,
               max_instances: int = 100,
               **kwargs) -> Union[List[AnimeInstances], AnimeInstances, None]:
-    
+
         """
         Args:
             imgs (str, ndarray, Sequence[str/ndarray]):
@@ -437,13 +437,13 @@ class AnimeInsSeg:
         if isinstance(imgs, str):
             if imgs.endswith('.txt'):
                 imgs = read_imglst_from_txt(imgs)
-        
+
         if save_annotation or save_visualization:
             return self._infer_save_annotations(imgs, pred_score_thr, det_size, save_dir, save_visualization, \
                                                save_annotation, infer_tags, obj_id_start, img_id_start, val_dir=val_dir)
         else:
             return self._infer_simple(imgs, pred_score_thr, det_size, output_type, infer_tags, verbose=verbose, infer_grey=infer_grey)
-        
+
     def _det_forward(self, img, test_pipeline, pred_score_thr: float = 0.3) -> Tuple[AnimeInstances, np.ndarray]:
         data_, img = test_pipeline(img)
         with torch.no_grad():
@@ -452,23 +452,23 @@ class AnimeInsSeg:
             pred_instances = pred_instances[pred_instances.scores > pred_score_thr]
             if len(pred_instances) < 1:
                 return AnimeInstances(), img
-        
+
         del data_
-        
+
         bboxes = pred_instances.bboxes.to(torch.int32)
         bboxes[:, 2:] -= bboxes[:, :2]
         masks = pred_instances.masks
         scores = pred_instances.scores
         return AnimeInstances(masks, bboxes, scores), img
-        
-    def _infer_simple(self, imgs: Union[List, str, np.ndarray], 
+
+    def _infer_simple(self, imgs: Union[List, str, np.ndarray],
                       pred_score_thr: float = 0.3,
                       det_size: int = None,
                       output_type: str = "tensor",
                       infer_tags: bool = False,
                       infer_grey: bool = False,
                       verbose: bool = False) -> Union[DetDataSample, List[DetDataSample]]:
-        
+
         if isinstance(imgs, List):
             return_list = True
         else:
@@ -492,10 +492,10 @@ class AnimeInsSeg:
 
             if infer_tags:
                 self.infer_tags(instances, img, infer_grey)
-                
+
             if output_type == 'numpy':
                 instances.to_numpy()
-                
+
             predictions.append(instances)
 
         if return_list:
@@ -503,14 +503,14 @@ class AnimeInsSeg:
         else:
             return predictions[0]
 
-    def _infer_save_annotations(self, imgs: Union[List, str, np.ndarray], 
+    def _infer_save_annotations(self, imgs: Union[List, str, np.ndarray],
               pred_score_thr: float = 0.3,
-              det_size: int = None, 
+              det_size: int = None,
               save_dir: str = '',
               save_visualization: bool = False,
               save_annotation: str = '',
               infer_tags: bool = False,
-              obj_id_start: int = 100000000000, 
+              obj_id_start: int = 100000000000,
               img_id_start: int = 100000000000,
               save_mask_only: bool = False,
               val_dir = None,
@@ -538,7 +538,7 @@ class AnimeInsSeg:
         if save_dir == '':
             save_dir = osp.join(target_dir, \
                 osp.basename(self.ckpt).replace('.ckpt', '').replace('.pth', '').replace('.pt', ''))
-            
+
         if not osp.exists(save_dir):
             os.makedirs(save_dir)
 
@@ -556,7 +556,7 @@ class AnimeInsSeg:
 
             if coco_api is not None:
                 image_id = imgp2ids[img]
-            
+
             try:
                 instances, img = self._det_forward(img, test_pipeline, pred_score_thr)
             except Exception as e:
@@ -586,7 +586,7 @@ class AnimeInsSeg:
             if save_annotation:
                 im_h, im_w = img.shape[:2]
                 image_meta.append({
-                    "id": image_id,"height": im_h,"width": im_w, 
+                    "id": image_id,"height": im_h,"width": im_w,
                     "file_name": img_name, "id": image_id
                 })
                 if instances is not None:
@@ -614,12 +614,12 @@ class AnimeInsSeg:
                 image_id += 1
 
         if save_annotation != '' and not save_mask_only:
-            det_meta = {"info": {},"licenses": [], "images": image_meta, 
+            det_meta = {"info": {},"licenses": [], "images": image_meta,
                         "annotations": det_annotations, "categories": CATEGORIES}
             detp = save_annotation
             dict2json(det_meta, detp)
             LOGGER.info(f'annotations saved to {detp}')
-    
+
     def set_refine_method(self, refine_method: str = 'none', refine_size: int = 720):
         if refine_method == 'none':
             self.postprocess_refine = None
@@ -634,19 +634,19 @@ class AnimeInsSeg:
             self.postprocess_refine = self._postprocess_refine
         else:
             raise NotImplementedError(f'Invalid refine method: {refine_method}')
-        
+
     def _postprocess_refine(self, instances: AnimeInstances, img: np.ndarray, refine_size: int = 720, max_refine_batch: int = 4, **kwargs):
-        
+
         if instances.is_empty:
             return
-        
+
         segs = instances.masks
         is_tensor = instances.is_tensor
         if is_tensor:
             segs = segs.cpu().numpy()
         segs = segs.astype(np.float32)
         im_h, im_w = img.shape[:2]
-        
+
         masks = []
         with torch.no_grad():
             for batch, (pt, pb, pl, pr) in prepare_refine_batch(segs, img, max_refine_batch, self.device, refine_size):
@@ -666,7 +666,7 @@ class AnimeInsSeg:
 
 
     def prepare_data_pipeline(self, imgs: Union[str, np.ndarray, List], det_size: int) -> Tuple[Compose, List, str]:
-        
+
         if det_size is None:
             det_size = self.default_det_size
 
@@ -696,7 +696,7 @@ class AnimeInsSeg:
     def save_visualization(self, out_file: str, img: np.ndarray, instances: AnimeInstances):
         drawed = instances.draw_instances(img)
         mmcv.imwrite(drawed, out_file)
-    
+
     def postprocess_results(self, results: DetDataSample, img: np.ndarray) -> None:
         if self.postprocess_refine is not None:
             self.postprocess_refine(results, img)
