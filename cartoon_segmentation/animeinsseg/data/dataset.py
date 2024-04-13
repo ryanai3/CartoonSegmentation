@@ -13,8 +13,8 @@ from numpy import random
 from mmdet.structures.bbox import autocast_box_type, BaseBoxes
 from mmengine.structures import InstanceData, PixelData
 from mmdet.structures import DetDataSample
-from utils.io_utils import bbox_overlap_xy
-from utils.logger import LOGGER
+from cartoon_segmentation.utils.io_utils import bbox_overlap_xy
+from cartoon_segmentation.utils.logger import LOGGER
 
 @DATASETS.register_module()
 class AnimeMangaMixedDataset(CocoDataset):
@@ -259,7 +259,7 @@ class LoadAnnotationsNoSegs(LoadAnnotations):
             self._load_seg_map(results)
 
         return results
-        
+
 
 
 @TRANSFORMS.register_module()
@@ -352,7 +352,7 @@ def translate_bitmapmask(bitmap_masks: BitmapMasks,
               out_shape,
               offset_x,
               offset_y,):
-              
+
     if len(bitmap_masks.masks) == 0:
         translated_masks = np.empty((0, *out_shape), dtype=np.uint8)
     else:
@@ -447,7 +447,7 @@ class CachedMosaicNoSeg(CachedMosaic):
         center_position = (center_x, center_y)
 
         loc_strs = ('top_left', 'top_right', 'bottom_left', 'bottom_right')
-        
+
         n_manga = 0
         for i, loc in enumerate(loc_strs):
             if loc == 'top_left':
@@ -500,9 +500,9 @@ class CachedMosaicNoSeg(CachedMosaic):
                 gt_masks_i = results_patch['gt_masks']
                 gt_masks_i = gt_masks_i.rescale(float(scale_ratio_i))
 
-                gt_masks_i = translate_bitmapmask(gt_masks_i, 
+                gt_masks_i = translate_bitmapmask(gt_masks_i,
                     out_shape=(int(self.img_scale[0] * 2),
-                    int(self.img_scale[1] * 2)), 
+                    int(self.img_scale[1] * 2)),
                     offset_x=padw, offset_y=padh)
 
                 # gt_masks_i = gt_masks_i.translate(
@@ -527,7 +527,7 @@ class CachedMosaicNoSeg(CachedMosaic):
         # remove outside bboxes
         inside_inds = mosaic_bboxes.is_inside(
             [2 * self.img_scale[1], 2 * self.img_scale[0]]).numpy()
-        
+
         mosaic_bboxes = mosaic_bboxes[inside_inds]
         mosaic_bboxes_labels = mosaic_bboxes_labels[inside_inds]
         mosaic_ignore_flags = mosaic_ignore_flags[inside_inds]
@@ -539,7 +539,7 @@ class CachedMosaicNoSeg(CachedMosaic):
         results['gt_bboxes_labels'] = mosaic_bboxes_labels
         results['gt_ignore_flags'] = mosaic_ignore_flags
         results['gt_ignore_mask_flags'] = mosaic_ignore_mask_flags
-        
+
 
         if with_mask:
             total_instances = len(inside_inds)
@@ -558,8 +558,8 @@ class CachedMosaicNoSeg(CachedMosaic):
             else:
                 mosaic_masks = mosaic_masks[0].cat(mosaic_masks)
                 results['gt_masks'] = mosaic_masks[inside_inds]
-            # assert np.all(results['gt_masks'].masks == masks) and results['gt_masks'].masks.shape == masks.shape 
-        
+            # assert np.all(results['gt_masks'].masks == masks) and results['gt_masks'].masks.shape == masks.shape
+
         # assert inside_inds.sum() == results['gt_masks'].masks.shape[0]
         return results
 
@@ -600,7 +600,7 @@ class FilterAnnotationsNoSeg(FilterAnnotations):
             tests.append(
                 ((gt_bboxes.widths > self.min_gt_bbox_wh[0]) &
                  (gt_bboxes.heights > self.min_gt_bbox_wh[1])).numpy())
-                 
+
         if self.by_mask:
             assert 'gt_masks' in results
             gt_masks = results['gt_masks']
@@ -872,8 +872,8 @@ class CachedMixUpNoSeg(CachedMixUp):
         cp_retrieve_gt_bboxes.translate_([-x_offset, -y_offset])
         if with_mask:
 
-            retrieve_gt_masks = translate_bitmapmask(retrieve_gt_masks, 
-                out_shape=(target_h, target_w), 
+            retrieve_gt_masks = translate_bitmapmask(retrieve_gt_masks,
+                out_shape=(target_h, target_w),
                 offset_x=-x_offset, offset_y=-y_offset)
 
             # retrieve_gt_masks = retrieve_gt_masks.translate(
