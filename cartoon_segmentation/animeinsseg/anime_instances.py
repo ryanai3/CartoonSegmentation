@@ -2,8 +2,8 @@
 import numpy as np
 from typing import List, Union, Tuple
 import torch
-from utils.constants import COLOR_PALETTE
-from utils.constants import get_color
+from cartoon_segmentation.utils.constants import COLOR_PALETTE
+from cartoon_segmentation.utils.constants import get_color
 import cv2
 
 def tags2multilines(tags: Union[str, List], lw, tf, max_width):
@@ -30,15 +30,15 @@ def tags2multilines(tags: Union[str, List], lw, tf, max_width):
 
 class AnimeInstances:
 
-    def __init__(self, 
-                 masks: Union[np.ndarray, torch.Tensor ]= None, 
-                 bboxes: Union[np.ndarray, torch.Tensor ] = None, 
+    def __init__(self,
+                 masks: Union[np.ndarray, torch.Tensor ]= None,
+                 bboxes: Union[np.ndarray, torch.Tensor ] = None,
                  scores: Union[np.ndarray, torch.Tensor ] = None,
                  tags: List[str] = None, character_tags: List[str] = None) -> None:
         self.masks = masks
         self.tags = tags
         self.bboxes =  bboxes
-        
+
 
         if scores is None:
             scores = [1.] * len(self)
@@ -62,14 +62,14 @@ class AnimeInstances:
             return True
         else:
             return False
-        
+
     @property
     def is_tensor(self):
         if self.is_empty:
             return False
         else:
             return isinstance(self.masks, torch.Tensor)
-        
+
     @property
     def is_numpy(self):
         if self.is_empty:
@@ -80,13 +80,13 @@ class AnimeInstances:
     @property
     def is_empty(self):
         return self.masks is None or len(self.masks) == 0\
-        
+
     def remove_duplicated(self):
-        
+
         num_masks = len(self)
         if num_masks < 2:
             return
-        
+
         need_cvt = False
         if self.is_numpy:
             need_cvt = True
@@ -126,32 +126,32 @@ class AnimeInstances:
         if need_cvt:
             self.to_numpy()
 
-        # sids = 
+        # sids =
 
-    def draw_instances(self, 
+    def draw_instances(self,
                       img: np.ndarray,
-                      draw_bbox: bool = True, 
-                      draw_ins_mask: bool = True, 
-                      draw_ins_contour: bool = True, 
+                      draw_bbox: bool = True,
+                      draw_ins_mask: bool = True,
+                      draw_ins_contour: bool = True,
                       draw_tags: bool = False,
                       draw_indices: List = None,
                       mask_alpha: float = 0.4):
-        
+
         mask_alpha = 0.75
 
 
         drawed = img.copy()
-        
+
         if self.is_empty:
             return drawed
-        
+
         im_h, im_w = img.shape[:2]
 
         mask_shape = self.masks[0].shape
         if mask_shape[0] != im_h or mask_shape[1] != im_w:
             drawed = cv2.resize(drawed, (mask_shape[1], mask_shape[0]), interpolation=cv2.INTER_AREA)
             im_h, im_w = mask_shape[0], mask_shape[1]
-        
+
         if draw_indices is None:
             draw_indices = list(range(len(self)))
         ins_dict = {'mask': [], 'tags': [], 'score': [], 'bbox': [], 'character_tags': []}
@@ -188,18 +188,18 @@ class AnimeInstances:
                 for ii, l in enumerate(lines):
                     xy = (bbox[0], bbox[1] + line_height + int(line_height * 1.2 * ii))
                     cv2.putText(drawed, l, xy, 0, lw / 3, color, thickness=tf, lineType=cv2.LINE_AA)
-                
+
         # cv2.imshow('canvas', drawed)
         # cv2.waitKey(0)
         return drawed
-    
+
 
     def cuda(self):
         if self.is_empty:
             return self
         self.to_tensor(device='cuda')
         return self
-    
+
     def cpu(self):
         if not self.is_tensor or not self.is_cuda:
             return self
@@ -217,7 +217,7 @@ class AnimeInstances:
         self.bboxes = torch.from_numpy(self.bboxes).to(device)
         self.scores = torch.from_numpy(self.scores ).to(device)
         return self
-    
+
     def to_numpy(self):
         if self.is_numpy:
             return self
@@ -230,7 +230,7 @@ class AnimeInstances:
             self.scores = self.scores.numpy()
             self.bboxes = self.bboxes.numpy()
         return self
-    
+
     def get_instance(self, ins_idx: int, out_type: str = None, device: str = None):
         mask = self.masks[ins_idx]
         tags = self.tags[ins_idx]
@@ -250,7 +250,7 @@ class AnimeInstances:
                 mask = mask.to(device)
                 bbox = bbox.to(device)
                 score = score.to(device)
-            
+
         return {
             'mask': mask,
             'tags': tags,
@@ -258,13 +258,13 @@ class AnimeInstances:
             'bbox': bbox,
             'score': score
         }
-    
+
     def __len__(self):
         if self.is_empty:
             return 0
         else:
             return len(self.masks)
-        
+
     def resize(self, h, w, mode = 'area'):
         if self.is_empty:
             return
@@ -298,4 +298,4 @@ class AnimeInstances:
             return mask
 
 
-    
+
